@@ -2,7 +2,7 @@
 
 Dokumen desain & panduan untuk membangun ulang aplikasi `dashboard.html` menjadi sistem web multi-admin yang online, gratis, dan dipakai bersama oleh admin internal gereja (call center, dept penyelenggara, publikasi, media, EO, dll).
 
-Status: **Disetujui — Vercel + Supabase**
+Status: **Terimplementasi & Sudah Online** — https://infodatacenter.vercel.app/
 
 ---
 
@@ -105,6 +105,7 @@ Catatan:
 | GET | `/api/events/:id` | Publik | Detail satu kegiatan |
 | GET | `/api/events/:id/image` | Publik | Gambar promo (mime sesuai `content_type`) |
 | POST | `/api/events` | PIN | Tambah kegiatan (data JSON) |
+| POST | `/api/verify-pin` | Publik | Cek PIN `{pin}` → `{ok}` (tanpa mengubah data) |
 | PUT | `/api/events/:id` | PIN | Ubah kegiatan |
 | DELETE | `/api/events/:id` | PIN | Hapus kegiatan (gambar ikut terhapus via CASCADE) |
 | POST | `/api/events/:id/image` | PIN | Upload/ubah gambar (raw body atau multipart) |
@@ -183,12 +184,14 @@ Catatan:
 
 ---
 
-## 9. Deploy Gratis (Vercel + Supabase)
+## 9. Deploy Gratis (Vercel + Supabase) — SUDAH DILAKUKAN
+
+Hasil: project aktif di **https://infodatacenter.vercel.app/** (repo: `kamediapublikasi-boop/infodatacenter`). Supabase region `ap-northeast-1`, memakai connection string pooled.
 
 ### A. Supabase
 1. Daftar di https://supabase.com → New Project (pilih region terdekat, simpan `Database Password`).
 2. Buka **SQL Editor** → tempel isi `schema.sql` → Run.
-3. Catat **Project Settings → Database → Connection string** (pakai yang "pooled" bila tersedia) untuk diisi ke `DATABASE_URL`.
+3. Catat **Project Settings → Database → Connection string** (pakai yang "pooled" bila tersedia) untuk diisi ke `DATABASE_URL`. *(Sudah: `postgres.efoymwgwzmvpoyzbeksx` @ `aws-0-ap-northeast-1.pooler.supabase.com`)*
 
 ### B. Vercel
 1. `git init` + commit proyek → push ke GitHub (repo publik/privat bebas).
@@ -218,7 +221,14 @@ Catatan:
 
 ## 11. Catatan & Keputusan Terbuka
 
-- `start-server.bat` lama memanggil `serve.js` yang tidak ada → akan diganti untuk menjalankan server Express baru.
-- `AGENTS.md` akan diperbarui setelah implementasi (struktur baru, cara verifikasi baru, key API, nilai enumerasi tetap sama).
+- ~~`start-server.bat` lama memanggil `serve.js` yang tidak ada~~ → sudah diganti menjalankan server Express baru (`node server/index.js`).
+- ~~`AGENTS.md` akan diperbarui setelah implementasi~~ → sudah (struktur baru, cara verifikasi baru, key API, nilai enumerasi sama).
 - Log aktivitas (timestamp aksi) opsional, ditambahkan belakangan bila dibutuhkan.
 - Backup rutin: Supabase → SQL Editor → Export, atau gunakan `pg_dump` bila perlu.
+- Sudah ter-import: `template.csv` (7 event contoh) ke database produksi — boleh dihapus/diganti data asli.
+
+## 12. Log Implementasi
+
+- 2026-08-19 — Skema + seed `template.csv` (7 event) di Supabase; koneksi DB diverifikasi lokal.
+- 2026-08-19 — Vercel env (`DATABASE_URL`, `EDIT_PIN`) diset; `GET /api/events` → 200 (7 data), `POST /api/verify-pin` → `{"ok":true}` di produksi.
+- 2026-08-19 — MD files di-sinkronkan dengan status live (README, RENCANA, AGENTS).

@@ -736,7 +736,7 @@ let modalEventId = null;
 let loadTimer = null;
 let modalImgUrl = null;
 async function openModal(id) {
-  const ev = App.events.find(e => e.id === id);
+  const ev = App.events.find(e => String(e.id) === String(id));
   if (!ev) return;
   modalEventId = ev.id;
   const st = statusInfo(ev.status);
@@ -1057,7 +1057,7 @@ async function saveEventFromForm() {
 }
 
 async function deleteEvent(id) {
-  const ev = App.events.find(e => e.id === id);
+  const ev = App.events.find(e => String(e.id) === String(id));
   if (!ev) return;
   if (!confirm(`Hapus kegiatan "${ev.nama}"?`)) return;
   try {

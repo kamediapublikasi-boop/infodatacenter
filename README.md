@@ -2,6 +2,15 @@
 
 Dashboard web multi-admin untuk data kegiatan gereja. Online, gratis (Vercel + Supabase), tanpa login — **baca bebas, edit butuh PIN bersama**.
 
+## Status: Sudah Online
+
+- **URL produksi:** https://infodatacenter.vercel.app/
+- **Repo GitHub:** https://github.com/kamediapublikasi-boop/infodatacenter
+- **Frontend** (static `public/`) + **API serverless** (`/api/*`) aktif di Vercel; setiap push ke `main` auto re-deploy.
+- **Database** PostgreSQL di Supabase (region `ap-northeast-1`) terhubung; skema `events` + `promo_images` sudah dibuat & dijalankan.
+- **Data contoh:** 7 event dari `template.csv` sudah ter-import — siap diganti data asli lewat **Kelola → Impor CSV**.
+- **Terverifikasi:** `GET /` 200, `GET /api/events` 200 (7 event), `POST /api/verify-pin` → `{"ok":true}`.
+
 ## Fitur
 
 - Kalender bulanan + panel hari, tabel terfilter/sort, kelola (CRUD)
@@ -24,23 +33,25 @@ Dashboard web multi-admin untuk data kegiatan gereja. Online, gratis (Vercel + S
 
 ## Deploy ke Vercel (Gratis)
 
+Sudah diterapkan untuk project ini. `vercel.json` mengatur: folder `public/` sebagai static, route `/api/*` ke `server/index.js`.
+
+Langkah untuk project baru:
 1. `git init`, commit, push ke GitHub.
 2. https://vercel.com → **Add New Project** → pilih repo.
 3. Set **Environment Variables**: `DATABASE_URL`, `EDIT_PIN`.
 4. Deploy. Selesai — akses URL `https://<nama>.vercel.app`.
 
-`vercel.json` sudah mengatur: folder `public/` sebagai static, route `/api/*` ke `server/index.js`.
-
 ## Import Data Lama
 
 - Lewat UI: view **Kelola → Impor CSV** (format 15 kolom lama).
-- Lewat CLI: `node seed.js path/file.csv`.
+- Lewat CLI: `node seed.js path/file.csv` (dipakai untuk meng-seed `template.csv`).
 
 ## Keamanan
 
 - PIN hanya ada di server (env var). Tidak pernah dikirim ke frontend sebagai kode.
 - Rate-limit percobaan PIN: 5 gagal → blokir 10 menit.
 - Tanpa login = tanpa jejak per-user. Untuk data sensitif lebih lanjut, rencanakan auth asli.
+- `DATABASE_URL`/`EDIT_PIN` disimpan di env Vercel + `.env` lokal (git-ignored, tidak pernah di-commit).
 
 ## Struktur
 
