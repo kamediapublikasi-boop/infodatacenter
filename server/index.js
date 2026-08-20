@@ -87,6 +87,27 @@ function parseId(req, res) {
   return id;
 }
 
+/* Serialisasi semua operasi tulis (POST/PUT/bulk) dengan advisory lock database.
+   Mencegah race: dua transaksi konkuren yang sama-sama tidak melihat baris belum-commit
+   lawannya lalu keduanya INSERT event identik (duplikat). Lock dilepas otomatis saat COMMIT/ROLLBACK. */
+const DEDUP_LOCK = `SELECT pg_advisory_xact_lock(hashtext('events_dedup_lock')::bigint)`;
+
+async function withWriteLock(fn) {
+  const client = await db.pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(DEDUP_LOCK);
+    const out = await fn(client);
+    await client.query("COMMIT");
+    return out;
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 /* ============== API: baca (publik) ============== */
 
 app.get("/api/events", async (req, res) => {
@@ -139,22 +160,23 @@ app.post("/api/events", checkPin, async (req, res) => {
   if (!d.tgl_mulai) return res.status(400).json({ error: "Tanggal Mulai wajib diisi." });
   if (!d.nama) return res.status(400).json({ error: "Nama Event wajib diisi." });
   try {
-    const dup = await dedup.findDuplicate(db.pool, d);
-    if (dup) {
-      const merged = dedup.mergeFields(dup, d);
-      if (dedup.hasChange(dup, merged)) {
-        const { rows } = await db.q(`${UPDATE_SQL} RETURNING *`, [dup.id, ...insertParams(merged)]);
-        res.status(200).json(Object.assign({}, toJSON(rows[0]), { _deduped: true, _merged: true }));
-      } else {
-        res.status(200).json(Object.assign({}, toJSON(dup), { _deduped: true, _merged: false }));
+    const result = await withWriteLock(async client => {
+      const dup = await dedup.findDuplicate(client, d);
+      if (dup) {
+        const merged = dedup.mergeFields(dup, d);
+        if (dedup.hasChange(dup, merged)) {
+          const { rows } = await client.query(`${UPDATE_SQL} RETURNING *`, [dup.id, ...insertParams(merged)]);
+          return { status: 200, body: Object.assign({}, toJSON(rows[0]), { _deduped: true, _merged: true }) };
+        }
+        return { status: 200, body: Object.assign({}, toJSON(dup), { _deduped: true, _merged: false }) };
       }
-      return;
-    }
-    const { rows } = await db.q(
-      `INSERT INTO events ${INSERT_COLS} VALUES ${INSERT_VALS} RETURNING *`,
-      insertParams(d)
-    );
-    res.status(201).json(toJSON(rows[0]));
+      const { rows } = await client.query(
+        `INSERT INTO events ${INSERT_COLS} VALUES ${INSERT_VALS} RETURNING *`,
+        insertParams(d)
+      );
+      return { status: 201, body: toJSON(rows[0]) };
+    });
+    res.status(result.status).json(result.body);
   } catch (e) {
     res.status(500).json({ error: "Gagal menyimpan: " + e.message });
   }
@@ -166,16 +188,16 @@ app.put("/api/events/:id", checkPin, async (req, res) => {
   const d = toDB(req.body || {});
   if (!d.tgl_mulai) return res.status(400).json({ error: "Tanggal Mulai wajib diisi." });
   try {
-    const collide = await dedup.findDuplicateExcept(db.pool, d, id);
-    if (collide) {
-      return res.status(409).json({ error: "Kegiatan lain sudah memiliki nama, tanggal, jam, dan tempat yang sama." });
-    }
-    const { rows } = await db.q(
-      `${UPDATE_SQL} RETURNING *`,
-      [id, ...insertParams(d)]
-    );
-    if (!rows.length) return res.status(404).json({ error: "Kegiatan tidak ditemukan." });
-    res.json(toJSON(rows[0]));
+    const result = await withWriteLock(async client => {
+      const collide = await dedup.findDuplicateExcept(client, d, id);
+      if (collide) {
+        return { status: 409, body: { error: "Kegiatan lain sudah memiliki nama, tanggal, jam, dan tempat yang sama." } };
+      }
+      const { rows } = await client.query(`${UPDATE_SQL} RETURNING *`, [id, ...insertParams(d)]);
+      if (!rows.length) return { status: 404, body: { error: "Kegiatan tidak ditemukan." } };
+      return { status: 200, body: toJSON(rows[0]) };
+    });
+    res.status(result.status).json(result.body);
   } catch (e) {
     res.status(500).json({ error: "Gagal menyimpan: " + e.message });
   }
@@ -204,6 +226,7 @@ app.post("/api/events/bulk", checkPin, async (req, res) => {
   let inserted = 0, updated = 0, skipped = 0;
   try {
     await client.query("BEGIN");
+    await client.query(DEDUP_LOCK);
     for (const item of list) {
       const d = toDB(item || {});
       if (!d.tgl_mulai) continue;
