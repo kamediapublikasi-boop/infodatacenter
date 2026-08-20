@@ -616,13 +616,16 @@ function renderDayPanel() {
   const d = App.selDate;
   if (!d) { panel.hidden = true; return; }
   panel.hidden = false;
-  title.innerHTML = `<span>&#128197;</span> Kegiatan ${fmtDateLong(d)} <button class="x" id="dayClose" title="Tutup">&#10005;</button>`;
+  title.innerHTML = `<span>&#128197;</span> Kegiatan ${fmtDateLong(d)} <button class="btn sm primary" id="dayAdd">&#43; Tambah Kegiatan</button> <button class="x" id="dayClose" title="Tutup">&#10005;</button>`;
   document.getElementById("dayClose").onclick = () => { App.selDate = null; renderDayPanel(); renderCalendar(); };
+  document.getElementById("dayAdd").onclick = () => openAddForDate(d);
 
   const evs = eventsOnDate(filteredEvents(), d);
   listEl.innerHTML = "";
   if (!evs.length) {
-    listEl.innerHTML = `<div style="color:var(--text-faint);font-size:13.5px">Tidak ada kegiatan pada tanggal ini.</div>`;
+    listEl.innerHTML = `<div style="color:var(--text-faint);font-size:13.5px">Tidak ada kegiatan pada tanggal ini.</div>
+      <button class="btn sm" id="dayAddEmpty">&#43; Tambah kegiatan</button>`;
+    listEl.querySelector("#dayAddEmpty").onclick = () => openAddForDate(d);
     return;
   }
   evs.sort((a, b) => (a.jamMulai || "").localeCompare(b.jamMulai || "") || a.startTS - b.startTS);
@@ -954,9 +957,10 @@ function refreshDivisiList() {
   const vals = [...new Set(App.events.map(e => e.divisi))].filter(d => d && d !== "—");
   dl.innerHTML = vals.map(v => `<option value="${esc(v)}"></option>`).join("");
 }
-function populateForm(ev) {
+function populateForm(ev, presetDate) {
   setFormError("");
   const def = ev || {};
+  const defTgl = presetDate || todayMidnight();
   const todayIso = iso(todayMidnight());
   const katSel = document.getElementById("f-kategori");
   const defKat = def.kategori || (katSel.options.length ? katSel.options[0].value : "");
@@ -965,9 +969,9 @@ function populateForm(ev) {
     kategori: defKat,
     status: def.status || "Rencana",
     jenis: def.jenis || "",
-    tglMulai: def.tglMulai ? iso(def.tglMulai) : todayIso,
+    tglMulai: def.tglMulai ? iso(def.tglMulai) : iso(defTgl),
     jamMulai: def.jamMulai || "",
-    tglSelesai: def.tglSelesai ? iso(def.tglSelesai) : todayIso,
+    tglSelesai: def.tglSelesai ? iso(def.tglSelesai) : iso(defTgl),
     jamSelesai: def.jamSelesai || "",
     lokasi: def.lokasi || "",
     divisi: def.divisi || "",
@@ -1014,9 +1018,11 @@ function validateEvent(ev) {
 }
 
 let editingId = null;
-async function openForm(id) {
+let formDatePreset = null;
+async function openForm(id, presetDate) {
   const targetId = id || null;
   editingId = targetId;
+  formDatePreset = targetId ? null : (presetDate || null);
   const ev = editingId ? App.events.find(e => String(e.id) === String(editingId)) : null;
   refreshDivisiList();
   document.getElementById("fTitle").textContent = ev ? "Edit Kegiatan" : "Tambah Kegiatan";
@@ -1029,14 +1035,20 @@ async function openForm(id) {
       formHasImage = true;
     }
   }
-  populateForm(ev);
+  populateForm(ev, formDatePreset);
   renderPromoField();
   document.getElementById("formOverlay").classList.add("open");
 }
 function closeForm() {
   document.getElementById("formOverlay").classList.remove("open");
   editingId = null;
+  formDatePreset = null;
   resetPromoState();
+}
+
+function openAddForDate(d) {
+  if (!isEditAllowed()) { openPinModal(); return; }
+  openForm(null, d);
 }
 
 async function saveEventFromForm() {
@@ -1061,10 +1073,12 @@ async function saveEventFromForm() {
   } else if (removePromo) {
     ImageAPI.del(savedId).catch(() => {});
   }
+  const presetDate = formDatePreset;
+  const keepSel = App.view === "calendar" && ev.tglMulai && presetDate && isSameDay(ev.tglMulai, presetDate);
+  if (App.view === "calendar" && ev.tglMulai) { App.cal.y = ev.tglMulai.getFullYear(); App.cal.m = ev.tglMulai.getMonth(); App.selDate = keepSel ? presetDate : null; }
   closeForm();
   App.page = 1; App.managePage = 1;
   await loadEvents({ silent: true });
-  if (App.view === "calendar" && ev.tglMulai) { App.cal.y = ev.tglMulai.getFullYear(); App.cal.m = ev.tglMulai.getMonth(); App.selDate = null; }
   toast(wasEdit ? "Perubahan disimpan" : "Kegiatan ditambahkan");
 }
 
