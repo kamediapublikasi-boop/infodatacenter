@@ -587,7 +587,22 @@ function renderCalendar() {
     }).join("");
 
   grid.querySelectorAll(".cal-cell").forEach(cell => {
-    cell.onclick = () => { selectDay(cell.dataset.day); };
+    cell.title = "Klik: lihat kegiatan · Klik dua kali: tambah kegiatan";
+    cell.onclick = () => {
+      const day = cell.dataset.day;
+      if (calClickLast === day) {
+        clearTimeout(calClickTimer);
+        calClickLast = null;
+        openAddForDate(parseDate(day));
+        return;
+      }
+      calClickLast = day;
+      clearTimeout(calClickTimer);
+      calClickTimer = setTimeout(() => {
+        calClickLast = null;
+        selectDay(day);
+      }, 260);
+    };
   });
   grid.querySelectorAll(".ev-chip[data-id]").forEach(chip => {
     chip.onclick = e => { e.stopPropagation(); openModal(chip.dataset.id); };
@@ -738,6 +753,8 @@ function renderPagination(total, totalPages) {
 let modalEventId = null;
 let imgWatchdog = null;
 let modalImgUrl = null;
+let calClickTimer = null;
+let calClickLast = null;
 async function openModal(id) {
   const ev = App.events.find(e => String(e.id) === String(id));
   if (!ev) return;
