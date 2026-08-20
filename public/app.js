@@ -1363,6 +1363,8 @@ async function saveEventFromForm() {
   if (err) { setFormError(err); return; }
   let savedId = editingId;
   let mergedDup = false;
+  const fBtn = document.getElementById("fSubmit");
+  setBtnBusy(fBtn, true, "Menyimpan…");
   try {
     if (editingId) {
       const collide = App.events.find(e => String(e.id) !== String(editingId) && waKeyMatches(e, ev));
@@ -1400,6 +1402,8 @@ async function saveEventFromForm() {
   } catch (e) {
     setFormError(e.message);
     return;
+  } finally {
+    setBtnBusy(fBtn, false);
   }
   if (pendingPromo) {
     ImageAPI.put(savedId, pendingPromo.blob).catch(() => toast("Gambar gagal disimpan"));
@@ -1434,12 +1438,15 @@ async function deleteEvent(id) {
 async function importFromFile(file) {
   const reader = new FileReader();
   reader.onload = async () => {
+    const btn = document.getElementById("importBtn2");
+    setBtnBusy(btn, true, "Mengimpor…");
     try {
       const rows = parseCSV(String(reader.result));
       if (rows.length < 2) throw new Error("File CSV tidak berisi data baris.");
       const events = normalizeRows(rows);
       if (!events.length) throw new Error("Tidak ada baris valid (butuh kolom Tanggal Mulai).");
       const payload = events.map(evToPayload);
+      showProgress("Mengimpor " + payload.length + " baris…");
       const res = await API.bulk(payload);
       App.filters.preset = "all";
       App.filters.from = null; App.filters.to = null;
@@ -1459,6 +1466,9 @@ async function importFromFile(file) {
       toast(bits.length ? bits.join(" · ") : "Tidak ada perubahan");
     } catch (err) {
       alert("Gagal mengimpor data: " + err.message);
+    } finally {
+      hideProgress();
+      setBtnBusy(btn, false);
     }
   };
   reader.readAsText(file);
@@ -1619,6 +1629,9 @@ async function commitWaImport() {
     }
     kept.push(ev);
   }
+  const btn = document.getElementById("waSubmit");
+  setBtnBusy(btn, true, "Menyimpan…");
+  showProgress("Menyimpan " + kept.length + " kegiatan…");
   try {
     const res = await API.bulk(kept.map(evToPayload));
     closeWaImport();
@@ -1630,6 +1643,9 @@ async function commitWaImport() {
     toast(bits.length ? bits.join(" · ") : "Tidak ada perubahan");
   } catch (e) {
     toast(e.message);
+  } finally {
+    hideProgress();
+    setBtnBusy(btn, false);
   }
 }
 
@@ -1639,6 +1655,23 @@ function toast(msg) {
   t.classList.add("show");
   clearTimeout(toast._t);
   toast._t = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function showProgress(msg) {
+  document.getElementById("progText").textContent = msg || "Menyimpan…";
+  document.getElementById("progOverlay").hidden = false;
+}
+function hideProgress() { document.getElementById("progOverlay").hidden = true; }
+function setBtnBusy(btn, busy, busyLabel) {
+  if (busy) {
+    btn.dataset.label = btn.textContent;
+    btn.textContent = busyLabel || "Menyimpan…";
+  } else if (btn.dataset.label) {
+    btn.textContent = btn.dataset.label;
+    delete btn.dataset.label;
+  }
+  btn.disabled = busy;
+  btn.classList.toggle("busy", busy);
 }
 
 /* ============== Promo (Gambar Kegiatan) ============== */
