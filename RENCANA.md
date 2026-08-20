@@ -216,6 +216,7 @@ Hasil: project aktif di **https://infodatacenter.vercel.app/** (repo: `kamediapu
 - **API:** uji `curl`/`Invoke-WebRequest` terhadap endpoint publik & dengan header PIN.
 - **Import:** uji dengan CSV template 15 kolom → jumlah kegiatan sesuai DB.
 - **Multi-admin:** buka dua tab/browser → edit di satu, pastikan tab lain ter-refresh via polling.
+- **Workflow perubahan:** uji lokal dulu (langkah dev di atas), baru `git commit` + `git push main` → Vercel auto-deploy. Dev lokal & produksi memakai database Supabase yang sama.
 
 ---
 
@@ -232,3 +233,7 @@ Hasil: project aktif di **https://infodatacenter.vercel.app/** (repo: `kamediapu
 - 2026-08-19 — Skema + seed `template.csv` (7 event) di Supabase; koneksi DB diverifikasi lokal.
 - 2026-08-19 — Vercel env (`DATABASE_URL`, `EDIT_PIN`) diset; `GET /api/events` → 200 (7 data), `POST /api/verify-pin` → `{"ok":true}` di produksi.
 - 2026-08-19 — MD files di-sinkronkan dengan status live (README, RENCANA, AGENTS).
+- 2026-08-20 — Fix id tipe campuran (string vs number): klik chip kalender, edit, hapus kini konsisten (`String(e.id) === String(id)`).
+- 2026-08-20 — Cache gambar promo: `GET /image` → `Cache-Control: no-store`; `ImageAPI.get` pakai `{cache:"no-store"}`; `.html` diserve dengan `no-cache`; cache-buster `?v=` untuk CSS/JS.
+- 2026-08-20 — Modal detail: gambar dimuat via `loadModalImage` (fetch→blob, wrap langsung tampil, watchdog 6 dtk, blob URL di-revoke saat tutup/ganti).
+- 2026-08-20 — **Akar masalah gambar tidak tampil di modal**: rule CSS `.modal-img-load { display:flex }` menimpa atribut `hidden`. Solusi: reset global `[hidden] { display:none !important }` di `style.css`. Terverifikasi terhadap `getComputedStyle` via Chrome headless & di browser user.

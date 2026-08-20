@@ -9,7 +9,7 @@ Dashboard web multi-admin untuk data kegiatan gereja. Online, gratis (Vercel + S
 - **Frontend** (static `public/`) + **API serverless** (`/api/*`) aktif di Vercel; setiap push ke `main` auto re-deploy.
 - **Database** PostgreSQL di Supabase (region `ap-northeast-1`) terhubung; skema `events` + `promo_images` sudah dibuat & dijalankan.
 - **Data contoh:** 7 event dari `template.csv` sudah ter-import — siap diganti data asli lewat **Kelola → Impor CSV**.
-- **Terverifikasi:** `GET /` 200, `GET /api/events` 200 (7 event), `POST /api/verify-pin` → `{"ok":true}`.
+- **Terverifikasi:** `GET /` 200, `GET /api/events` 200 (7 event), `POST /api/verify-pin` → `{"ok":true}`. Gambar promo tampil di modal detail (fix `[hidden]` CSS, 2026-08-20).
 
 ## Fitur
 
@@ -30,6 +30,17 @@ Dashboard web multi-admin untuk data kegiatan gereja. Online, gratis (Vercel + S
 1. Daftar di https://supabase.com → New Project.
 2. Buka **SQL Editor** → tempel isi `schema.sql` → Run.
 3. Salin **Connection string** (Project Settings → Database) ke `DATABASE_URL`.
+
+## Workflow Perubahan
+
+Setiap update: **uji lokal dulu, baru push → auto-deploy Vercel** (dev lokal & produksi memakai database Supabase yang sama).
+
+1. Edit kode.
+2. Cek syntax: `npm run check` (server) + `node --check public/app.js`.
+3. Uji di `http://localhost:3000` (browser) — pastikan fitur yang diubah berfungsi.
+4. `git commit` + `git push main` → Vercel re-deploy otomatis (~1 menit).
+
+Pengecualian: perubahan sangat kecil (teks/tombol) boleh langsung push, tapi tetap minim risiko.
 
 ## Deploy ke Vercel (Gratis)
 

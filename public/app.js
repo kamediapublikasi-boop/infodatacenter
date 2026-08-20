@@ -261,7 +261,7 @@ const API = {
 const ImageAPI = {
   async get(id) {
     try {
-      const r = await fetch("/api/events/" + id + "/image");
+      const r = await fetch("/api/events/" + id + "/image", { cache: "no-store" });
       if (!r.ok) return null;
       return await r.blob();
     } catch (e) { return null; }
@@ -733,7 +733,7 @@ function renderPagination(total, totalPages) {
 
 /* ============== Modal ============== */
 let modalEventId = null;
-let loadTimer = null;
+let imgWatchdog = null;
 let modalImgUrl = null;
 async function openModal(id) {
   const ev = App.events.find(e => String(e.id) === String(id));
@@ -773,39 +773,51 @@ async function openModal(id) {
   document.getElementById("mLegend").innerHTML = catLegend;
 
   document.getElementById("overlay").classList.add("open");
+  await loadModalImage(ev.id);
+}
+
+async function loadModalImage(id) {
   const wrap = document.getElementById("mImgWrap");
   const img = document.getElementById("mImg");
   const loadEl = document.getElementById("mImgLoad");
-  wrap.hidden = true;
+  const emptyEl = document.getElementById("mImgEmpty");
+  clearTimeout(imgWatchdog);
+  if (modalImgUrl) {
+    URL.revokeObjectURL(modalImgUrl);
+    modalImgUrl = null;
+  }
+  img.removeAttribute("src");
   img.onload = null;
   img.onerror = null;
-  if (modalImgUrl) { URL.revokeObjectURL(modalImgUrl); modalImgUrl = null; }
-  img.removeAttribute("src");
+  if (emptyEl) emptyEl.hidden = true;
+  wrap.hidden = true;
+  loadEl.hidden = true;
+  let blob = null;
   try {
-    const blob = await ImageAPI.get(ev.id);
-    if (blob) {
-      loadEl.hidden = false;
-      clearTimeout(loadTimer);
-      loadTimer = setTimeout(() => { loadEl.hidden = true; }, 4000);
-      img.onload = () => { loadEl.hidden = true; clearTimeout(loadTimer); };
-      img.onerror = () => { loadEl.hidden = true; clearTimeout(loadTimer); };
-      modalImgUrl = URL.createObjectURL(blob);
-      img.src = modalImgUrl;
-      wrap.hidden = false;
-    } else {
-      wrap.hidden = true;
-    }
+    blob = await ImageAPI.get(id);
   } catch (e) {
-    wrap.hidden = true;
-  } finally {
-    loadEl.hidden = true;
-    clearTimeout(loadTimer);
+    blob = null;
   }
+  if (!blob) {
+    if (emptyEl) {
+      emptyEl.textContent = "Tidak ada gambar promo untuk kegiatan ini.";
+      emptyEl.hidden = false;
+    }
+    return;
+  }
+  modalImgUrl = URL.createObjectURL(blob);
+  wrap.hidden = false;
+  loadEl.hidden = false;
+  img.onload = () => { loadEl.hidden = true; };
+  img.onerror = () => { loadEl.hidden = true; };
+  img.src = modalImgUrl;
+  imgWatchdog = setTimeout(() => { loadEl.hidden = true; }, 6000);
 }
 
 function closeModal() {
   document.getElementById("overlay").classList.remove("open");
   modalEventId = null;
+  clearTimeout(imgWatchdog);
   if (modalImgUrl) { URL.revokeObjectURL(modalImgUrl); modalImgUrl = null; }
   const img = document.getElementById("mImg");
   if (img.src && img.src.startsWith("blob:")) img.removeAttribute("src");
@@ -1005,7 +1017,7 @@ let editingId = null;
 async function openForm(id) {
   const targetId = id || null;
   editingId = targetId;
-  const ev = editingId ? App.events.find(e => e.id === editingId) : null;
+  const ev = editingId ? App.events.find(e => String(e.id) === String(editingId)) : null;
   refreshDivisiList();
   document.getElementById("fTitle").textContent = ev ? "Edit Kegiatan" : "Tambah Kegiatan";
   document.getElementById("fSubmit").textContent = ev ? "Simpan Perubahan" : "Tambah";
@@ -1323,7 +1335,9 @@ function init() {
   document.getElementById("exportBtn").onclick = exportFiltered;
   document.getElementById("mClose").onclick = closeModal;
   document.getElementById("mEdit").onclick = () => {
-    if (modalEventId != null) { closeModal(); openForm(modalEventId); }
+    const id = modalEventId;
+    closeModal();
+    if (id != null) openForm(id);
   };
   document.getElementById("overlay").onclick = e => { if (e.target === e.currentTarget) closeModal(); };
   document.getElementById("fClose").onclick = closeForm;

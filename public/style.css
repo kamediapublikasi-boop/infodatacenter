@@ -1,4 +1,7 @@
-﻿:root {
+﻿/* Atribut hidden selalu menang, apapun rule display lain */
+[hidden] { display: none !important; }
+
+:root {
   --bg: #f4f6fa;
   --bg-soft: #ffffff;
   --bg-hover: #eef1f7;
@@ -341,6 +344,7 @@ td.aksi-cell { white-space: nowrap; }
 
 /* Promo gambar */
 .modal-img { position: relative; line-height: 0; background: var(--bg-hover); }
+.modal-img-empty { padding: 26px 16px; text-align: center; color: var(--text-faint); font-size: 13.5px; background: var(--bg-soft); border-bottom: 1px solid var(--border); line-height: 1.5; }
 .modal-img img { display: block; margin: 0 auto; max-width: 100%; max-height: 420px; width: auto; height: auto; cursor: zoom-in; }
 .modal-img-load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-hover); color: var(--text-faint); font-size: 13px; line-height: 1.4; }
 .promo-field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

@@ -10,7 +10,11 @@ const { checkPin, verifyPin } = require("./pin");
 const app = express();
 app.disable("x-powered-by");
 
-app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.static(path.join(__dirname, "..", "public"), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
+  }
+}));
 app.use(express.json({ limit: "1mb" }));
 
 /* ============== Mapping ============== */
@@ -108,7 +112,7 @@ app.get("/api/events/:id/image", async (req, res) => {
     const { rows } = await db.q(`SELECT data, content_type FROM promo_images WHERE event_id = $1`, [id]);
     if (!rows.length) return res.status(404).json({ error: "Tidak ada gambar untuk kegiatan ini." });
     res.set("Content-Type", rows[0].content_type);
-    res.set("Cache-Control", "public, max-age=3600");
+    res.set("Cache-Control", "no-store");
     res.send(rows[0].data);
   } catch (e) {
     res.status(500).json({ error: "Gagal memuat gambar: " + e.message });
