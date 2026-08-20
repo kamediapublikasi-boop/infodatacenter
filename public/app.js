@@ -240,23 +240,18 @@ function waClassify(block, opts) {
   const norm = s => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
   let kategori = "Lainnya";
   const normTxt = norm(text);
-  for (const k of Object.keys(CAT_COLORS)) {
-    if (normTxt.includes(norm(k))) { kategori = k; break; }
-  }
-  if (kategori === "Lainnya") {
-    const kwMap = [
-      ["ibadah doa", "Ibadah Doa & Puasa"], ["doa pagi", "Ibadah Doa & Puasa"], ["mezbah doa", "Ibadah Doa & Puasa"],
-      ["doa puasa", "Ibadah Doa & Puasa"], ["rapat", "Rapat & Koordinasi"], ["pertemuan", "Rapat & Koordinasi"],
-      ["koordinasi", "Rapat & Koordinasi"], ["koordinir", "Rapat & Koordinasi"],
-      ["latihan", "Pelatihan & Discipleship"], ["poco", "Pelatihan & Discipleship"], ["sekolah minggu", "Pelatihan & Discipleship"],
-      ["discipleship", "Pelatihan & Discipleship"], ["pembinaan", "Pelatihan & Discipleship"],
-      ["kebaktian", "Kebaktian Khusus"], ["konser", "Konser & Pertunjukan"], ["retret", "Retreat & Rekoleksi"],
-      ["rekoleksi", "Retreat & Rekoleksi"], ["diakonia", "Pelayanan Sosial"], ["sosial", "Pelayanan Sosial"],
-      ["ibadah", "Ibadah Raya"]
-    ];
-    for (const [kw, cat] of kwMap) {
-      if (normTxt.includes(kw)) { kategori = cat; break; }
-    }
+  const kwMap = [
+    ["komsel", "Kelompok Sel/ Pemuridan"], ["komsel", "Kelompok Sel/ Pemuridan"], ["cell", "Kelompok Sel/ Pemuridan"],
+    ["meeting", "Meeting"], ["rapat", "Meeting"], ["pertemuan", "Meeting"], ["evaluasi", "Meeting"], ["koordinasi", "Meeting"],
+    ["pemuridan", "Kelompok Sel/ Pemuridan"],
+    ["doa", "Doa"], ["ukupan", "Doa"], ["mezbah", "Doa"], ["puasa", "Doa"], ["pondok daud", "Doa"],
+    ["pemberkatan", "Pemberkatan Nikah"], ["nikah", "Pemberkatan Nikah"], ["wedding", "Pemberkatan Nikah"], ["pernikahan", "Pemberkatan Nikah"],
+    ["latihan", "Latihan/ Training/ Kelas"], ["training", "Latihan/ Training/ Kelas"], ["kelas", "Latihan/ Training/ Kelas"],
+    ["poco", "Latihan/ Training/ Kelas"], ["audisi", "Latihan/ Training/ Kelas"], ["som", "Latihan/ Training/ Kelas"],
+    ["ibadah", "Ibadah"], ["worship", "Ibadah"], ["kebaktian", "Ibadah"], ["sekolah minggu", "Ibadah"], ["kids", "Ibadah"], ["ira", "Ibadah"]
+  ];
+  for (const [kw, cat] of kwMap) {
+    if (normTxt.includes(kw)) { kategori = cat; break; }
   }
 
   let peserta = null;
@@ -392,15 +387,13 @@ function parseWaText(raw) {
 
 /* ============== Color maps ============== */
 const CAT_COLORS = {
-  "Ibadah Raya": "#3b82f6",
-  "Ibadah Komsel": "#14b8a6",
-  "Ibadah Doa & Puasa": "#8b5cf6",
-  "Kebaktian Khusus": "#6366f1",
-  "Pelatihan & Discipleship": "#22c55e",
-  "Retreat & Rekoleksi": "#f97316",
-  "Konser & Pertunjukan": "#ec4899",
-  "Pelayanan Sosial": "#ef4444",
-  "Rapat & Koordinasi": "#64748b"
+  "Ibadah": "#3b82f6",
+  "Kelompok Sel/ Pemuridan": "#14b8a6",
+  "Latihan/ Training/ Kelas": "#f59e0b",
+  "Doa": "#8b5cf6",
+  "Meeting": "#64748b",
+  "Pemberkatan Nikah": "#ec4899",
+  "Lainnya": "#9ca3af"
 };
 function catColor(k) { return CAT_COLORS[k] || "#7c8aa0"; }
 

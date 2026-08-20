@@ -19,6 +19,7 @@ Dashboard web multi-admin untuk data kegiatan gereja. Online, gratis (Vercel + S
 - **Anti-duplikat otomatis**: kegiatan dengan nama, tanggal, jam, dan tempat yang sama tidak akan dicatat dua kali — data yang lebih lengkap digabung ke kegiatan yang sudah ada (berlaku untuk form tambah/edit, impor WA, dan impor CSV)
 - **Indikator proses**: spinner + pesan "Menyimpan N kegiatan…" muncul saat menambah/mengimpor banyak event; tombol terkunci agar tidak ada klik ganda
 - Filter periode/kategori/status/divisi/pencarian; ekspor CSV
+- **Kategori kegiatan (7)**: Ibadah · Kelompok Sel/ Pemuridan · Latihan/ Training/ Kelas · Doa · Meeting · Pemberkatan Nikah · Lainnya
 - Gambar promo per kegiatan
 - Sinkron otomatis antar admin (polling 30 detik)
 - Mode baca tanpa PIN; mode edit dengan PIN (disimpan sementara di browser)
