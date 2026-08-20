@@ -5,20 +5,18 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp
 
 function parseDate(s) {
   if (!s) return null;
-  const m = String(s).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (!m) return null;
-  return new Date(+m[1], +m[2] - 1, +m[3]);
+  const str = String(s).trim();
+  const mIso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (mIso) return new Date(+mIso[1], +mIso[2] - 1, +mIso[3]);
+  const mDmy = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (mDmy) return new Date(+mDmy[3], +mDmy[2] - 1, +mDmy[1]);
+  return null;
 }
 function fmtDate(d) {
   if (!d) return "—";
-  const months = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
-function fmtDateLong(d) {
-  if (!d) return "—";
-  const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-}
+function fmtDateLong(d) { return fmtDate(d); }
 function iso(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
@@ -405,6 +403,42 @@ const STATUS_META = {
   "Dibatalkan":{ cls: "st-cancel", label: "Dibatalkan" }
 };
 function statusInfo(s) { return STATUS_META[s] || { cls: "", label: s }; }
+
+const DIVISI_OPTIONS = [
+  "Divisi Doa",
+  "Divisi KAW",
+  "Divisi Komsel",
+  "Divisi Konsolidasi",
+  "Divisi Pemuridan",
+  "Divisi Penggembalaan",
+  "Divisi EO",
+  "Divisi Media",
+  "Divisi Kids",
+  "Divisi Youth & Teens",
+  "Divisi Perintisan & Pengembangan (P2)"
+];
+
+const LOKASI_OPTIONS = [
+  "R Bethel",
+  "R Yordan",
+  "Selasar STT",
+  "Welcome Room",
+  "R Elim 1",
+  "R Elim 2",
+  "R Kana",
+  "R Yerusalem",
+  "R Betlehem",
+  "R Pniel",
+  "R Moria",
+  "R Betania",
+  "R Hermon",
+  "Hall ICC Paragon",
+  "R SM Besar ICC Paragon",
+  "R SM Kecil ICC Paragon",
+  "R Ukupan ICC Paragon",
+  "R Jiwa Baru ICC Paragon",
+  "R Penghitung ICC Paragon"
+];
 
 /* ============== State ============== */
 const App = {
@@ -1142,15 +1176,16 @@ function closeLightbox() {
 function collectOptions() {
   return {
     cats: [...new Set(App.events.map(e => e.kategori))].sort(),
-    stats: [...new Set(App.events.map(e => e.status))].sort(),
-    divs: [...new Set(App.events.map(e => e.divisi))].filter(d => d !== "—").sort()
+    stats: [...new Set(App.events.map(e => e.status))].sort()
   };
 }
 function rebuildDropdowns() {
-  const { cats, stats, divs } = collectOptions();
+  const { cats, stats } = collectOptions();
   buildDropdown("ddKategori", "Kategori", cats.map(c => ({ value: c, label: c, color: catColor(c) })), render);
   buildDropdown("ddStatus", "Status", stats.map(s => ({ value: s, label: s })), render);
-  buildDropdown("ddDivisi", "Divisi", divs.map(d => ({ value: d, label: d })), render);
+  const divs = DIVISI_OPTIONS.map(d => ({ value: d, label: d }));
+  if (App.events.some(e => !e.divisi || e.divisi === "—")) divs.unshift({ value: "—", label: "(tanpa divisi)" });
+  buildDropdown("ddDivisi", "Divisi", divs, render);
 }
 
 function renderManage() {
@@ -1250,11 +1285,6 @@ function setFormError(msg) {
   el.textContent = msg || "";
   el.classList.toggle("show", !!msg);
 }
-function refreshDivisiList() {
-  const dl = document.getElementById("divisiList");
-  const vals = [...new Set(App.events.map(e => e.divisi))].filter(d => d && d !== "—");
-  dl.innerHTML = vals.map(v => `<option value="${esc(v)}"></option>`).join("");
-}
 function populateForm(ev, presetDate) {
   setFormError("");
   const def = ev || {};
@@ -1271,7 +1301,6 @@ function populateForm(ev, presetDate) {
     jamMulai: def.jamMulai || "",
     tglSelesai: def.tglSelesai ? iso(def.tglSelesai) : iso(defTgl),
     jamSelesai: def.jamSelesai || "",
-    lokasi: def.lokasi || "",
     divisi: def.divisi || "",
     pj: def.pj || "",
     sasaran: def.sasaran || "",
@@ -1282,6 +1311,19 @@ function populateForm(ev, presetDate) {
     const el = document.getElementById("eventForm").elements[k];
     if (el) el.value = v;
   }
+  const lokSel = document.getElementById("f-lokasi-sel");
+  const lokManual = document.getElementById("f-lokasi-manual");
+  const curLok = def.lokasi || "";
+  if (LOKASI_OPTIONS.includes(curLok)) {
+    lokSel.value = curLok;
+    lokManual.value = "";
+    lokManual.style.display = "none";
+  } else {
+    lokSel.value = "__manual__";
+    lokManual.value = curLok;
+    lokManual.style.display = "";
+    lokManual.focus();
+  }
 }
 function buildEventFromForm() {
   const fd = new FormData(document.getElementById("eventForm"));
@@ -1289,13 +1331,17 @@ function buildEventFromForm() {
   const tglMulai = parseDate(get("tglMulai"));
   const tglSelesai = parseDate(get("tglSelesai")) || tglMulai;
   const peserta = parseInt(get("peserta"), 10);
+  const lokSel = document.getElementById("f-lokasi-sel");
+  const lokSelVal = lokSel ? lokSel.value : "";
+  const lokManualVal = document.getElementById("f-lokasi-manual").value.trim();
+  const lokasi = lokSelVal === "__manual__" ? (lokManualVal || "—") : (lokSelVal || "—");
   return {
     nama: get("nama"),
     kategori: get("kategori") || "Lainnya",
     jenis: get("jenis") || "—",
     tglMulai, jamMulai: get("jamMulai"),
     tglSelesai, jamSelesai: get("jamSelesai"),
-    lokasi: get("lokasi") || "—",
+    lokasi,
     divisi: get("divisi") || "—",
     pj: get("pj") || "—",
     sasaran: get("sasaran") || "—",
@@ -1322,7 +1368,6 @@ async function openForm(id, presetDate) {
   editingId = targetId;
   formDatePreset = targetId ? null : (presetDate || null);
   const ev = editingId ? App.events.find(e => String(e.id) === String(editingId)) : null;
-  refreshDivisiList();
   document.getElementById("fTitle").textContent = ev ? "Edit Kegiatan" : "Tambah Kegiatan";
   document.getElementById("fSubmit").textContent = ev ? "Simpan Perubahan" : "Tambah";
   resetPromoState();
@@ -1555,6 +1600,8 @@ function renderWaResults(notes) {
       `<option value="${esc(k)}"${k === ev.kategori ? " selected" : ""}>${esc(k)}</option>`).join("");
     const staOpts = Object.keys(STATUS_META).map(s =>
       `<option value="${esc(s)}"${s === ev.status ? " selected" : ""}>${esc(s)}</option>`).join("");
+    const divOpts = ["", ...DIVISI_OPTIONS].map(d =>
+      `<option value="${esc(d)}"${d === ev.divisi ? " selected" : ""}>${d ? esc(d) : "—"}</option>`).join("");
     return `<div class="wa-row" data-i="${i}">
       <div class="wa-badges">
         ${ev._needDate ? '<span class="wa-badge ndate">perlu tanggal</span>' : ""}
@@ -1566,8 +1613,8 @@ function renderWaResults(notes) {
         <div class="wa-field"><label>Kategori</label><select id="wa-kat-${i}">${katOpts}</select></div>
         <div class="wa-field"><label>Tanggal</label><input id="wa-tgl-${i}" type="date" value="${ev.tglMulai ? iso(ev.tglMulai) : ""}"></div>
         <div class="wa-field"><label>Jam</label><input id="wa-jam-${i}" type="time" value="${esc(ev.jamMulai || "")}"></div>
-        <div class="wa-field"><label>Lokasi</label><input id="wa-lok-${i}" value="${esc(ev.lokasi)}"></div>
-        <div class="wa-field"><label>Divisi</label><input id="wa-div-${i}" value="${esc(ev.divisi)}"></div>
+        <div class="wa-field"><label>Lokasi</label><input id="wa-lok-${i}" list="lokasiSuggest" value="${esc(ev.lokasi)}"></div>
+        <div class="wa-field"><label>Divisi</label><select id="wa-div-${i}">${divOpts}</select></div>
         <div class="wa-field"><label>Status</label><select id="wa-sta-${i}">${staOpts}</select></div>
       </div>
       <label class="wa-inc" title="Sertakan kegiatan ini"><input type="checkbox" id="wa-inc-${i}" checked></label>
@@ -1789,7 +1836,7 @@ const CSV_HEADER = ["ID","Nama Event","Kategori","Jenis Kegiatan","Tanggal Mulai
 function evToRow(ev) {
   return [
     ev.id, ev.nama, ev.kategori, ev.jenis,
-    iso(ev.tglMulai), ev.jamMulai, iso(ev.tglSelesai), ev.jamSelesai,
+    fmtDate(ev.tglMulai), ev.jamMulai, fmtDate(ev.tglSelesai), ev.jamSelesai,
     ev.lokasi, ev.divisi, ev.pj, ev.sasaran,
     ev.peserta == null ? "" : ev.peserta, ev.status, ev.keterangan
   ];
@@ -1897,6 +1944,15 @@ function init() {
   document.getElementById("fCancel").onclick = closeForm;
   document.getElementById("formOverlay").onclick = e => { if (e.target === e.currentTarget) closeForm(); };
   document.getElementById("eventForm").addEventListener("submit", e => { e.preventDefault(); saveEventFromForm(); });
+  document.getElementById("f-lokasi-sel").addEventListener("change", e => {
+    const manual = document.getElementById("f-lokasi-manual");
+    if (e.target.value === "__manual__") {
+      manual.style.display = "";
+      manual.focus();
+    } else {
+      manual.style.display = "none";
+    }
+  });
 
   const pinBtn = document.getElementById("pinBtn");
   pinBtn.onclick = () => { if (isEditAllowed()) lockEdit(); else openPinModal(); };

@@ -20,6 +20,9 @@ Dashboard web multi-admin untuk data kegiatan gereja. Online, gratis (Vercel + S
 - **Indikator proses**: spinner + pesan "Menyimpan N kegiatan…" muncul saat menambah/mengimpor banyak event; tombol terkunci agar tidak ada klik ganda
 - Filter periode/kategori/status/divisi/pencarian; ekspor CSV
 - **Kategori kegiatan (7)**: Ibadah · Kelompok Sel/ Pemuridan · Latihan/ Training/ Kelas · Doa · Meeting · Pemberkatan Nikah · Lainnya
+- **Divisi penyelenggara (11, dropdown)**: Divisi Doa, KAW, Komsel, Konsolidasi, Pemuridan, Penggembalaan, EO, Media, Kids, Youth & Teens, Perintisan & Pengembangan (P2)
+- **Lokasi (dropdown 19 + tulis manual)**: R Bethel, R Yordan, Selasar STT, Welcome Room, R Elim 1–2, R Kana, R Yerusalem, R Betlehem, R Pniel, R Moria, R Betania, R Hermon, Hall ICC Paragon, R SM Besar/Kecil/Ukupan/Jiwa Baru/Penghitung ICC Paragon — plus opsi "Tulis manual…"
+- **Format tanggal: dd/mm/yyyy** (tampilan & CSV export/import; input form/filter tetap date-picker, nilai internal ISO)
 - Gambar promo per kegiatan
 - Sinkron otomatis antar admin (polling 30 detik)
 - Mode baca tanpa PIN; mode edit dengan PIN (disimpan sementara di browser)

@@ -198,12 +198,47 @@
           </div>
           <div class="m-item">
             <label class="form-label" for="f-lokasi">Lokasi</label>
-            <input class="form-control" id="f-lokasi" name="lokasi" type="text" maxlength="150">
+            <select class="form-control" id="f-lokasi-sel" name="lokasiSel">
+              <option value="">— Pilih lokasi —</option>
+              <option value="R Bethel">R Bethel</option>
+              <option value="R Yordan">R Yordan</option>
+              <option value="Selasar STT">Selasar STT</option>
+              <option value="Welcome Room">Welcome Room</option>
+              <option value="R Elim 1">R Elim 1</option>
+              <option value="R Elim 2">R Elim 2</option>
+              <option value="R Kana">R Kana</option>
+              <option value="R Yerusalem">R Yerusalem</option>
+              <option value="R Betlehem">R Betlehem</option>
+              <option value="R Pniel">R Pniel</option>
+              <option value="R Moria">R Moria</option>
+              <option value="R Betania">R Betania</option>
+              <option value="R Hermon">R Hermon</option>
+              <option value="Hall ICC Paragon">Hall ICC Paragon</option>
+              <option value="R SM Besar ICC Paragon">R SM Besar ICC Paragon</option>
+              <option value="R SM Kecil ICC Paragon">R SM Kecil ICC Paragon</option>
+              <option value="R Ukupan ICC Paragon">R Ukupan ICC Paragon</option>
+              <option value="R Jiwa Baru ICC Paragon">R Jiwa Baru ICC Paragon</option>
+              <option value="R Penghitung ICC Paragon">R Penghitung ICC Paragon</option>
+              <option value="__manual__">✏️ Tulis manual…</option>
+            </select>
+            <input class="form-control" id="f-lokasi-manual" name="lokasi" type="text" maxlength="150" placeholder="Ketik lokasi…" style="display:none">
           </div>
           <div class="m-item">
             <label class="form-label" for="f-divisi">Divisi Penyelenggara</label>
-            <input class="form-control" id="f-divisi" name="divisi" type="text" list="divisiList" maxlength="100">
-            <datalist id="divisiList"></datalist>
+            <select class="form-control" id="f-divisi" name="divisi">
+              <option value="">— Pilih divisi —</option>
+              <option value="Divisi Doa">Divisi Doa</option>
+              <option value="Divisi KAW">Divisi KAW</option>
+              <option value="Divisi Komsel">Divisi Komsel</option>
+              <option value="Divisi Konsolidasi">Divisi Konsolidasi</option>
+              <option value="Divisi Pemuridan">Divisi Pemuridan</option>
+              <option value="Divisi Penggembalaan">Divisi Penggembalaan</option>
+              <option value="Divisi EO">Divisi EO</option>
+              <option value="Divisi Media">Divisi Media</option>
+              <option value="Divisi Kids">Divisi Kids</option>
+              <option value="Divisi Youth &amp; Teens">Divisi Youth &amp; Teens</option>
+              <option value="Divisi Perintisan &amp; Pengembangan (P2)">Divisi Perintisan &amp; Pengembangan (P2)</option>
+            </select>
           </div>
           <div class="m-item">
             <label class="form-label" for="f-pj">Penanggung Jawab</label>
@@ -297,11 +332,33 @@
   </div>
 </div>
 
+<datalist id="lokasiSuggest">
+  <option value="R Bethel"></option>
+  <option value="R Yordan"></option>
+  <option value="Selasar STT"></option>
+  <option value="Welcome Room"></option>
+  <option value="R Elim 1"></option>
+  <option value="R Elim 2"></option>
+  <option value="R Kana"></option>
+  <option value="R Yerusalem"></option>
+  <option value="R Betlehem"></option>
+  <option value="R Pniel"></option>
+  <option value="R Moria"></option>
+  <option value="R Betania"></option>
+  <option value="R Hermon"></option>
+  <option value="Hall ICC Paragon"></option>
+  <option value="R SM Besar ICC Paragon"></option>
+  <option value="R SM Kecil ICC Paragon"></option>
+  <option value="R Ukupan ICC Paragon"></option>
+  <option value="R Jiwa Baru ICC Paragon"></option>
+  <option value="R Penghitung ICC Paragon"></option>
+</datalist>
+
 <div class="lightbox" id="lightbox">
   <img id="lightboxImg" alt="Perbesar gambar promo">
   <button class="lb-close" id="lbClose" title="Tutup">&#10005;</button>
 </div>
 
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

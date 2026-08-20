@@ -1,8 +1,8 @@
 ID,Nama Event,Kategori,Jenis Kegiatan,Tanggal Mulai,Jam Mulai,Tanggal Selesai,Jam Selesai,Lokasi,Divisi Penyelenggara,Penanggung Jawab,Sasaran,Perkiraan Peserta,Status,Keterangan
-1,Ibadah Raya Minggu,Ibadah,Ibadah,2026-08-02,08:00,2026-08-02,10:00,Gedung Utama,Ibadah,Pdt. Andreas,Jemaat,1200,Terjadwal,Rutin setiap Minggu
-2,Retreat Pemuda,Lainnya,Retreat,2026-08-07,15:00,2026-08-09,12:00,Wisma Kaki Bukit,Pemuda,Kak Dani,Pemuda & Remaja,80,Terjadwal,Kegiatan multi-hari
-3,Ibadah Doa & Puasa,Doa,Doa puasa,2026-08-05,18:00,2026-08-05,21:00,Gedung Utama,Doa & Puasa,Ibu Maria,Jemaat,350,Berlangsung,Doa puasa mingguan
-4,Konser Musik Rohani,Lainnya,Konser,2026-08-22,19:00,2026-08-22,22:00,Aula Serbaguna,Media,Tim Media,Jemaat & umum,500,Rencana,Menampilkan paduan suara gereja
-5,Pasar Murah Pelayanan Sosial,Lainnya,Bakti sosial,2026-08-15,08:00,2026-08-15,14:00,Halaman Gereja,Diakonia,Ibu Yuni,Warga sekitar,200,Rencana,Kerja sama dengan sekolah minggu
-6,Rapat Panitia Natal,Meeting,Koordinasi,2026-08-25,19:00,2026-08-25,20:30,Ruang Serba Guna,EO,Bpk. Hendra,Panitia Natal,25,Terjadwal,Persiapan ibadah Natal
-7,Klub Doa Anak,Doa,Doa,2026-06-14,16:00,2026-06-14,17:30,Ruang Sekolah Minggu,Anak,Bu Rina,Anak-anak,40,Selesai,Rutin dua mingguan
+1,Ibadah Raya Minggu,Ibadah,Ibadah,02/08/2026,08:00,02/08/2026,10:00,R Bethel,Divisi Doa,Pdt. Andreas,Jemaat,1200,Terjadwal,Rutin setiap Minggu
+2,Retreat Pemuda,Lainnya,Retreat,07/08/2026,15:00,09/08/2026,12:00,Welcome Room,Divisi Pemuridan,Kak Dani,Pemuda & Remaja,80,Terjadwal,Kegiatan multi-hari
+3,Ibadah Doa & Puasa,Doa,Doa puasa,05/08/2026,18:00,05/08/2026,21:00,R Bethel,Divisi Doa,Ibu Maria,Jemaat,350,Berlangsung,Doa puasa mingguan
+4,Konser Musik Rohani,Lainnya,Konser,22/08/2026,19:00,22/08/2026,22:00,Hall ICC Paragon,Divisi Media,Tim Media,Jemaat & umum,500,Rencana,Menampilkan paduan suara gereja
+5,Pasar Murah Pelayanan Sosial,Lainnya,Bakti sosial,15/08/2026,08:00,15/08/2026,14:00,Selasar STT,Divisi KAW,Ibu Yuni,Warga sekitar,200,Rencana,Kerja sama dengan sekolah minggu
+6,Rapat Panitia Natal,Meeting,Koordinasi,25/08/2026,19:00,25/08/2026,20:30,R Yordan,Divisi EO,Bpk. Hendra,Panitia Natal,25,Terjadwal,Persiapan ibadah Natal
+7,Klub Doa Anak,Doa,Doa,14/06/2026,16:00,14/06/2026,17:30,R Elim 1,Divisi Kids,Bu Rina,Anak-anak,40,Selesai,Rutin dua mingguan
