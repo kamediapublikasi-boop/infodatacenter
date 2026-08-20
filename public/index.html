@@ -103,6 +103,7 @@
       <div class="tablecard">
         <div class="managebar">
           <button class="btn primary needs-pin" id="addBtn">&#43; Tambah Kegiatan</button>
+          <button class="btn needs-pin" id="waBtn">&#128172; Impor dari Teks (WA)</button>
           <button class="btn needs-pin" id="importBtn2">&#11021; Impor CSV</button>
           <button class="btn" id="exportAllBtn">&#8681; Ekspor Semua</button>
           <span class="manage-info" id="manageInfo"></span>
@@ -262,11 +263,39 @@
 
 <div id="toast"></div>
 
+<!-- Modal impor jadwal dari teks WhatsApp -->
+<div class="overlay" id="waOverlay">
+  <div class="modal" style="max-width:840px">
+    <div class="modal-head">
+      <h2>&#128172; Impor Jadwal dari Teks (WhatsApp)</h2>
+      <button class="m-close" id="waClose" title="Tutup">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <p class="wa-hint" id="waHint">Tempel daftar jadwal dari chat WhatsApp. Format header tanggal + tabel juga didukung. Contoh:<br>
+        <em>MINGGU 23 AGUSTUS 2026<br>
+        &bull; 09.00 | Ibadah Raya | Gedung Utama<br>
+        &bull; 17.00 - 19.00 | Latihan Paduan Suara | R. Moria lt.4<br>
+        &bull; Ibadah Doa &amp; Puasa besok 19.00 di Ruang Tengah</em></p>
+      <textarea class="wa-text" id="waText" rows="7" placeholder="Tempel daftar jadwal di sini..."></textarea>
+      <div class="wa-actions">
+        <button class="btn" id="waParse">&#128269; Analisis teks</button>
+        <span class="wa-count" id="waCount"></span>
+      </div>
+      <div class="form-error" id="waError" hidden></div>
+      <div id="waResults"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="waCancel">Batal</button>
+      <button class="btn primary" id="waSubmit" disabled>&#43; Tambahkan kegiatan</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox">
   <img id="lightboxImg" alt="Perbesar gambar promo">
   <button class="lb-close" id="lbClose" title="Tutup">&#10005;</button>
 </div>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

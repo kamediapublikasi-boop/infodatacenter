@@ -102,6 +102,294 @@ function normalizeRows(csvRows) {
   return events;
 }
 
+/* ============== Parsing teks jadwal (WhatsApp) ============== */
+const WA_MONTHS = ["januari","februari","maret","april","mei","juni","juli","agustus","september","oktober","november","desember"];
+const WA_DAY_IDX = { minggu:0, ahad:0, senin:1, selasa:2, rabu:3, kamis:4, jumat:5, sabtu:6 };
+
+function waClean(raw) {
+  return String(raw || "")
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map(l => l.replace(/^[\s•\-\–—>*#]+/, "").trim())
+    .filter(l => l);
+}
+
+function waNoise(l) {
+  const t = l.trim();
+  if (!t) return true;
+  if (/^\+?\d{3,}/.test(t)) return true;
+  if (/^\[\d{1,2}[:.]\d{2}/.test(t)) return true;
+  if (!t.includes("|") && /^\d{1,2}[:.]\d{2}\s*[,.\-]\s*\d/.test(t)) return true;
+  if (/^(pesan|message|forwarded|diteruskan|disematkan|gambar|stiker|sticker|foto|video|like|reaksi)\b/i.test(t)) return true;
+  if (/^👍|^😀|^❤/.test(t)) return true;
+  if (t.length < 3) return true;
+  return false;
+}
+
+function waKw(t, low, kw) {
+  const i = low.indexOf(kw);
+  return i >= 0 ? t.substr(i, kw.length) : kw;
+}
+
+function waFindDate(s, ref, strict) {
+  ref = ref || todayMidnight();
+  const t = " " + String(s).replace(/\s+/g, " ").trim() + " ";
+  const low = t.toLowerCase();
+  let m;
+  m = t.match(/\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/);
+  if (m) {
+    const y = +m[1], mo = +m[2], d = +m[3];
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const dt = new Date(y, mo - 1, d);
+      if (dt.getDate() === d) return { date: dt, hit: m[0] };
+    }
+  }
+  m = t.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
+  if (m) {
+    let d = +m[1], mo = +m[2], y = m[3] ? +m[3] : ref.getFullYear();
+    if (y < 100) y += 2000;
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const dt = new Date(y, mo - 1, d);
+      if (dt.getDate() === d) {
+        if (!m[3] && dt < ref) dt.setFullYear(dt.getFullYear() + 1);
+        return { date: dt, hit: m[0] };
+      }
+    }
+  }
+  m = t.match(/\b(\d{1,2})-(\d{1,2})(?:\-(\d{4}))?\b/);
+  if (m) {
+    let d = +m[1], mo = +m[2], y = m[3] ? +m[3] : ref.getFullYear();
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const dt = new Date(y, mo - 1, d);
+      if (dt.getDate() === d) {
+        if (!m[3] && dt < ref) dt.setFullYear(dt.getFullYear() + 1);
+        return { date: dt, hit: m[0] };
+      }
+    }
+  }
+  m = t.match(/\b(?:tanggal|tgl\.?)\s+(\d{1,2})(?:\s+([a-z]+))?(?:\s+(\d{4}))?\b/i);
+  if (m) {
+    let mo = 1, y = ref.getFullYear();
+    if (m[2]) {
+      const mn = WA_MONTHS.indexOf(m[2].toLowerCase());
+      if (mn >= 0) mo = mn + 1; else return { date: null, hit: "" };
+    }
+    if (m[3]) y = +m[3];
+    const d = +m[1];
+    const dt = new Date(y, mo - 1, d);
+    if (dt.getDate() === d) return { date: dt, hit: m[0] };
+  }
+  m = t.match(/\b(\d{1,2})\s+(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)(?:\s+(\d{4}))?\b/i);
+  if (m) {
+    const mo = WA_MONTHS.indexOf(m[2].toLowerCase()) + 1;
+    const y = m[3] ? +m[3] : ref.getFullYear();
+    const d = +m[1];
+    const dt = new Date(y, mo - 1, d);
+    if (dt.getDate() === d) return { date: dt, hit: m[0] };
+  }
+  if (!strict) {
+    if (low.includes("minggu depan")) {
+      const diff = (WA_DAY_IDX.minggu - ref.getDay() + 7) % 7 || 7;
+      return { date: addDays(ref, diff), hit: waKw(t, low, "minggu depan") };
+    }
+    if (low.includes("lusa")) return { date: addDays(ref, 2), hit: waKw(t, low, "lusa") };
+    if (low.includes("besok")) return { date: addDays(ref, 1), hit: waKw(t, low, "besok") };
+    if (low.includes("hari ini")) return { date: ref, hit: waKw(t, low, "hari ini") };
+    for (const name of Object.keys(WA_DAY_IDX)) {
+      if (low.includes(name)) {
+        const diff = (WA_DAY_IDX[name] - ref.getDay() + 7) % 7 || 7;
+        return { date: addDays(ref, diff), hit: waKw(t, low, name) };
+      }
+    }
+  }
+  return { date: null, hit: "" };
+}
+
+function waFindTime(s) {
+  const t = " " + String(s).replace(/\s+/g, " ").trim() + " ";
+  const low = t.toLowerCase();
+  let m, hh, mm = 0, hit = "";
+  m = t.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (m) { hh = +m[1]; mm = +m[2]; hit = m[0]; }
+  else {
+    m = t.match(/\b(?:jam|pukul)\s+(\d{1,2})(?:\.(\d{2}))?\b/);
+    if (m) { hh = +m[1]; mm = m[2] ? +m[2] : 0; hit = m[0]; }
+    else {
+      m = t.match(/\b(\d{1,2})\.(\d{2})\b/);
+      if (m && +m[1] <= 23 && +m[2] <= 59) { hh = +m[1]; mm = +m[2]; hit = m[0]; }
+      else return { time: "", hit: "" };
+    }
+  }
+  if (mm > 59 || hh > 23) return { time: "", hit: "" };
+  if (/(^|\s)(pagi|pagi buta)\b/.test(low)) { if (hh >= 12) hh -= 12; }
+  else if (/(^|\s)(siang|sore)\b/.test(low)) { if (hh < 7) hh += 12; }
+  else if (/(^|\s)(malam|petang)\b/.test(low)) { if (hh < 7) hh += 12; }
+  return { time: String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0"), hit };
+}
+
+function waClassify(block, opts) {
+  let text = block.replace(/\s+/g, " ").trim();
+  const lower = text.toLowerCase();
+  let status = "Rencana";
+  if (/\bberlangsung\b/.test(lower)) status = "Berlangsung";
+  else if (/selesai/.test(lower)) status = "Selesai";
+  else if (/batal/.test(lower)) status = "Dibatalkan";
+  else if (/terjadwal|dijadwalkan/.test(lower)) status = "Terjadwal";
+
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  let kategori = "Lainnya";
+  const normTxt = norm(text);
+  for (const k of Object.keys(CAT_COLORS)) {
+    if (normTxt.includes(norm(k))) { kategori = k; break; }
+  }
+  if (kategori === "Lainnya") {
+    const kwMap = [
+      ["ibadah doa", "Ibadah Doa & Puasa"], ["doa pagi", "Ibadah Doa & Puasa"], ["mezbah doa", "Ibadah Doa & Puasa"],
+      ["doa puasa", "Ibadah Doa & Puasa"], ["rapat", "Rapat & Koordinasi"], ["pertemuan", "Rapat & Koordinasi"],
+      ["koordinasi", "Rapat & Koordinasi"], ["koordinir", "Rapat & Koordinasi"],
+      ["latihan", "Pelatihan & Discipleship"], ["poco", "Pelatihan & Discipleship"], ["sekolah minggu", "Pelatihan & Discipleship"],
+      ["discipleship", "Pelatihan & Discipleship"], ["pembinaan", "Pelatihan & Discipleship"],
+      ["kebaktian", "Kebaktian Khusus"], ["konser", "Konser & Pertunjukan"], ["retret", "Retreat & Rekoleksi"],
+      ["rekoleksi", "Retreat & Rekoleksi"], ["diakonia", "Pelayanan Sosial"], ["sosial", "Pelayanan Sosial"],
+      ["ibadah", "Ibadah Raya"]
+    ];
+    for (const [kw, cat] of kwMap) {
+      if (normTxt.includes(kw)) { kategori = cat; break; }
+    }
+  }
+
+  let peserta = null;
+  const pm = text.match(/(?:peserta\s*)?[±+~]?\s*(\d{1,4})\s+orang/i);
+  if (pm) peserta = parseInt(pm[1], 10);
+
+  let lokasi = "";
+  const diHit = text.match(/\b(?:bertempat di|di)\s+([^,;]+)/i);
+  if (diHit && diHit[1].trim()) {
+    lokasi = diHit[1].replace(/[,\-–]+$/, "").trim();
+    text = text.slice(0, diHit.index).replace(/[,\s]+$/, "");
+  }
+  if (!lokasi) {
+    const lm = text.match(/\b(Gedung|Ruang|Aula|Halaman|Lapangan)\b\s+[\w .'\-]+/i);
+    if (lm) {
+      lokasi = lm[0].trim();
+      text = text.replace(lm[0], " ").replace(/\s+/g, " ").trim();
+    }
+  }
+
+  let divisi = "";
+  const byM = text.match(/(?:oleh|divisi)\s+([\w &'\-]+)$/i);
+  if (byM) divisi = byM[1].replace(/[,\-–]+$/, "").trim();
+
+  text = text.replace(/[,\-–;]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!(opts && opts.keepTimeWords)) {
+    text = text.replace(/\s+(pagi|pagi buta|siang|sore|malam|petang)\s*$/i, "").trim();
+  }
+  const nama = text.trim() || "Tanpa Nama";
+  return { nama, kategori, jenis: "—", lokasi, divisi, pj: "", sasaran: "", peserta, status, keterangan: "" };
+}
+
+function waExtractTimeRange(seg) {
+  const t1 = waFindTime(seg);
+  if (!t1.time) return { jamMulai: "", jamSelesai: "" };
+  const rest = seg.replace(t1.hit, " ").replace(/\s+/g, " ").trim();
+  const t2 = waFindTime(rest);
+  return { jamMulai: t1.time, jamSelesai: t2.time || "" };
+}
+
+function waScanPart(part, ref) {
+  const times = [], dates = [];
+  let rest = part, r;
+  for (;;) {
+    r = waFindTime(rest);
+    if (!r.time) break;
+    times.push(r.time);
+    rest = rest.replace(r.hit, " ").replace(/\s+/g, " ").trim();
+  }
+  for (;;) {
+    r = waFindDate(rest, ref, true);
+    if (!r.date) break;
+    dates.push(r.date);
+    rest = rest.replace(r.hit, " ").replace(/\s+/g, " ").trim();
+  }
+  return { times, dates, isMeta: rest.replace(/[^a-z0-9]/gi, "").trim() === "" };
+}
+
+function waIsDateHeader(text, ref) {
+  const dres = waFindDate(text, ref);
+  if (!dres.date) return null;
+  const rest = text
+    .replace(dres.hit, " ")
+    .replace(/\b(senin|selasa|rabu|kamis|jumat|jum'at|sabtu|minggu)\b/gi, " ")
+    .replace(/\b(jadwal|kegiatan|acara|agenda|program|aktivitas|rencana|untuk)\b/gi, " ")
+    .replace(/[^a-z0-9 ]/gi, " ")
+    .replace(/\s+/g, " ").trim();
+  return rest.length === 0 ? dres : null;
+}
+
+function parseWaText(raw) {
+  const ref = todayMidnight();
+  const lines = waClean(raw);
+  const events = [], notes = [];
+  let curDate = null;
+  for (const ln of lines) {
+    if (waNoise(ln)) continue;
+
+    const header = waIsDateHeader(ln, ref);
+    if (header) { curDate = header.date; continue; }
+
+    if (ln.indexOf("|") !== -1) {
+      const parts = ln.split("|").map(s => s.trim()).filter(s => s);
+      let jamMulai = "", jamSelesai = "", date = curDate;
+      const nameParts = [], locParts = [];
+      for (const p of parts) {
+        const meta = waScanPart(p, ref);
+        if (!meta.isMeta) {
+          if (nameParts.length === 0) nameParts.push(p); else locParts.push(p);
+          continue;
+        }
+        if (meta.times.length && !jamMulai) jamMulai = meta.times[0];
+        if (meta.times.length > 1 && !jamSelesai) jamSelesai = meta.times[1];
+        if (meta.dates.length) date = meta.dates[0];
+      }
+      const f = waClassify(nameParts.join(" | ") || "Tanpa Nama", { keepTimeWords: true });
+      const needDate = !date;
+      events.push(Object.assign({}, f, {
+        tglMulai: date, tglSelesai: date,
+        jamMulai, jamSelesai,
+        lokasi: locParts.join(" | ") || f.lokasi,
+        _needDate: needDate,
+        _raw: ln
+      }));
+      if (needDate) notes.push(ln);
+      continue;
+    }
+
+    let text = ln;
+    const dres = waFindDate(text, ref);
+    const date = dres.date || curDate;
+    const needDate = !date;
+    if (dres.date) text = text.replace(dres.hit, " ").replace(/\s+/g, " ").trim();
+    const t1 = waFindTime(text);
+    let jamMulai = "", jamSelesai = "";
+    if (t1.time) {
+      jamMulai = t1.time;
+      text = text.replace(t1.hit, " ").replace(/\s+/g, " ").trim();
+      const t2 = waFindTime(text);
+      if (t2.time) { jamSelesai = t2.time; text = text.replace(t2.hit, " ").replace(/\s+/g, " ").trim(); }
+    }
+    const f = waClassify(text);
+    events.push(Object.assign({}, f, {
+      tglMulai: date, tglSelesai: date,
+      jamMulai, jamSelesai,
+      _needDate: needDate,
+      _raw: ln
+    }));
+    if (needDate) notes.push(ln);
+  }
+  return { events, notes };
+}
+
 /* ============== Color maps ============== */
 const CAT_COLORS = {
   "Ibadah Raya": "#3b82f6",
@@ -1074,12 +1362,40 @@ async function saveEventFromForm() {
   const err = validateEvent(ev);
   if (err) { setFormError(err); return; }
   let savedId = editingId;
+  let mergedDup = false;
   try {
     if (editingId) {
+      const collide = App.events.find(e => String(e.id) !== String(editingId) && waKeyMatches(e, ev));
+      if (collide) {
+        setFormError("Kegiatan lain sudah memiliki nama, tanggal, jam, dan tempat yang sama.");
+        return;
+      }
       await API.update(editingId, evToPayload(ev));
     } else {
-      const created = await API.create(evToPayload(ev));
-      savedId = created.id;
+      const dup = App.events.find(e => waKeyMatches(e, ev));
+      if (dup) {
+        const merged = mergeEvent(dup, ev);
+        if (!waChangedFields(dup, merged)) {
+          setFormError("Kegiatan dengan nama, tanggal, jam, dan tempat yang sama sudah ada.");
+          return;
+        }
+        const m = merged;
+        await API.update(dup.id, {
+          nama: m.nama, kategori: m.kategori, jenis: m.jenis,
+          tglMulai: iso(ev.tglMulai),
+          jamMulai: m.jamMulai || "",
+          tglSelesai: ev.tglSelesai ? iso(ev.tglSelesai) : (m.tglSelesai || null),
+          jamSelesai: m.jamSelesai || "",
+          lokasi: m.lokasi, divisi: m.divisi, pj: m.pj, sasaran: m.sasaran,
+          peserta: m.peserta == null ? null : m.peserta,
+          status: m.status, keterangan: m.keterangan || ""
+        });
+        savedId = dup.id;
+        mergedDup = true;
+      } else {
+        const created = await API.create(evToPayload(ev));
+        savedId = created.id;
+      }
     }
   } catch (e) {
     setFormError(e.message);
@@ -1096,7 +1412,8 @@ async function saveEventFromForm() {
   closeForm();
   App.page = 1; App.managePage = 1;
   await loadEvents({ silent: true });
-  toast(wasEdit ? "Perubahan disimpan" : "Kegiatan ditambahkan");
+  if (mergedDup) toast("Kegiatan sudah ada — detail diperbarui (nama/waktu/tempat sama)");
+  else toast(wasEdit ? "Perubahan disimpan" : "Kegiatan ditambahkan");
 }
 
 async function deleteEvent(id) {
@@ -1135,12 +1452,185 @@ async function importFromFile(file) {
       document.getElementById("toDate").value = "";
       App.page = 1; App.managePage = 1; App.manageSearch = "";
       await loadEvents({ silent: true });
-      toast(res.count + " kegiatan diimpor");
+      const bits = [];
+      if (res.count) bits.push(res.count + " diimpor");
+      if (res.updated) bits.push(res.updated + " diperbarui (duplikat)");
+      if (res.skipped) bits.push(res.skipped + " dilewati (duplikat)");
+      toast(bits.length ? bits.join(" · ") : "Tidak ada perubahan");
     } catch (err) {
       alert("Gagal mengimpor data: " + err.message);
     }
   };
   reader.readAsText(file);
+}
+
+/* ============== Impor jadwal dari teks WhatsApp ============== */
+let waCandidates = [];
+
+function openWaImport() {
+  if (!isEditAllowed()) { openPinModal(); return; }
+  document.getElementById("waText").value = "";
+  document.getElementById("waResults").innerHTML = "";
+  document.getElementById("waHint").hidden = false;
+  document.getElementById("waError").hidden = true;
+  document.getElementById("waCount").textContent = "";
+  document.getElementById("waSubmit").disabled = true;
+  document.getElementById("waOverlay").classList.add("open");
+  setTimeout(() => document.getElementById("waText").focus(), 50);
+}
+function closeWaImport() {
+  document.getElementById("waOverlay").classList.remove("open");
+  waCandidates = [];
+}
+
+function runWaParse() {
+  const text = document.getElementById("waText").value;
+  const errEl = document.getElementById("waError");
+  if (!text.trim()) {
+    errEl.textContent = "Tempel dulu daftar jadwal dari chat WhatsApp.";
+    errEl.hidden = false;
+    return;
+  }
+  errEl.hidden = true;
+  const res = parseWaText(text);
+  waCandidates = res.events;
+  renderWaResults(res.notes);
+}
+
+function waKeyPart(s) { return String(s == null ? "" : s).toLowerCase().replace(/\s+/g, " ").trim(); }
+function waKeyDate(ev) {
+  if (!ev || !ev.tglMulai) return "";
+  return typeof ev.tglMulai === "string" ? String(ev.tglMulai).slice(0, 10) : iso(ev.tglMulai);
+}
+function waKeyMatches(a, b) {
+  if (waKeyPart(a.nama) !== waKeyPart(b.nama)) return false;
+  if (waKeyDate(a) !== waKeyDate(b)) return false;
+  const ja = String(a.jamMulai || ""), jb = String(b.jamMulai || "");
+  if (ja && jb && ja !== jb) return false;
+  const la = waKeyPart(a.lokasi), lb = waKeyPart(b.lokasi);
+  const ph = v => v === "" || v === "—";
+  if (!ph(la) && !ph(lb) && la !== lb) return false;
+  return true;
+}
+function mergeEvent(existing, incoming) {
+  const PH = new Set(["", "—"]);
+  const out = Object.assign({}, existing);
+  const fill = k => {
+    const cur = existing[k];
+    const curS = cur == null ? "" : cur;
+    const val = incoming[k];
+    if (PH.has(curS) || (k === "kategori" && curS === "Lainnya")) {
+      if (val != null && String(val) !== "") out[k] = val;
+    }
+  };
+  ["kategori", "jenis", "jamMulai", "tglSelesai", "jamSelesai", "lokasi", "divisi", "pj", "sasaran", "status", "keterangan"].forEach(fill);
+  if (existing.peserta == null && incoming.peserta != null) out.peserta = incoming.peserta;
+  return out;
+}
+function waChangedFields(a, b) {
+  const ks = ["nama", "kategori", "jenis", "jamMulai", "tglSelesai", "jamSelesai", "lokasi", "divisi", "pj", "sasaran", "peserta", "status", "keterangan"];
+  return ks.some(k => String(a[k] == null ? "" : a[k]) !== String(b[k] == null ? "" : b[k]));
+}
+function waIsDuplicate(ev) {
+  return App.events.some(e => waKeyMatches(e, ev));
+}
+
+function renderWaResults(notes) {
+  const box = document.getElementById("waResults");
+  const cnt = document.getElementById("waCount");
+  box.innerHTML = "";
+  if (!waCandidates.length) {
+    box.innerHTML = `<div style="color:var(--text-faint);font-size:13px">Tidak ada kegiatan yang bisa dideteksi. Periksa format teksnya (pastikan ada tanggal).</div>`;
+    cnt.textContent = "";
+    return;
+  }
+  cnt.textContent = waCandidates.length + " kegiatan terdeteksi" + (notes.length ? ` · ${notes.length} tanpa tanggal` : "");
+  const rowsHtml = waCandidates.map((ev, i) => {
+    const dup = waIsDuplicate(ev);
+    const batchDup = waCandidates.slice(0, i).some(prev => waKeyMatches(prev, ev));
+    const katOpts = Object.keys(CAT_COLORS).map(k =>
+      `<option value="${esc(k)}"${k === ev.kategori ? " selected" : ""}>${esc(k)}</option>`).join("");
+    const staOpts = Object.keys(STATUS_META).map(s =>
+      `<option value="${esc(s)}"${s === ev.status ? " selected" : ""}>${esc(s)}</option>`).join("");
+    return `<div class="wa-row" data-i="${i}">
+      <div class="wa-badges">
+        ${ev._needDate ? '<span class="wa-badge ndate">perlu tanggal</span>' : ""}
+        ${dup ? '<span class="wa-badge dup">duplikat?</span>' : ""}
+        ${batchDup ? '<span class="wa-badge dup">duplikat dalam teks</span>' : ""}
+      </div>
+      <div class="wa-grid">
+        <div class="wa-field wa-nama"><label>Nama</label><input id="wa-nama-${i}" value="${esc(ev.nama)}"></div>
+        <div class="wa-field"><label>Kategori</label><select id="wa-kat-${i}">${katOpts}</select></div>
+        <div class="wa-field"><label>Tanggal</label><input id="wa-tgl-${i}" type="date" value="${ev.tglMulai ? iso(ev.tglMulai) : ""}"></div>
+        <div class="wa-field"><label>Jam</label><input id="wa-jam-${i}" type="time" value="${esc(ev.jamMulai || "")}"></div>
+        <div class="wa-field"><label>Lokasi</label><input id="wa-lok-${i}" value="${esc(ev.lokasi)}"></div>
+        <div class="wa-field"><label>Divisi</label><input id="wa-div-${i}" value="${esc(ev.divisi)}"></div>
+        <div class="wa-field"><label>Status</label><select id="wa-sta-${i}">${staOpts}</select></div>
+      </div>
+      <label class="wa-inc" title="Sertakan kegiatan ini"><input type="checkbox" id="wa-inc-${i}" checked></label>
+    </div>`;
+  }).join("");
+  box.innerHTML = rowsHtml;
+  const submit = document.getElementById("waSubmit");
+  submit.disabled = false;
+  submit.textContent = "＋ Tambahkan " + waCandidates.length + " kegiatan";
+}
+
+function waCollectSelected() {
+  const out = [];
+  document.querySelectorAll(".wa-row").forEach(row => {
+    const i = +row.dataset.i;
+    const inc = document.getElementById("wa-inc-" + i);
+    if (!inc || !inc.checked) return;
+    const tgl = parseDate(document.getElementById("wa-tgl-" + i).value);
+    const nama = document.getElementById("wa-nama-" + i).value.trim();
+    if (!nama || !tgl) return;
+    const cand = waCandidates[i] || {};
+    out.push({
+      nama,
+      kategori: document.getElementById("wa-kat-" + i).value,
+      status: document.getElementById("wa-sta-" + i).value,
+      jenis: cand.jenis || "—",
+      tglMulai: tgl,
+      jamMulai: document.getElementById("wa-jam-" + i).value,
+      tglSelesai: tgl,
+      jamSelesai: cand.jamSelesai || "",
+      lokasi: document.getElementById("wa-lok-" + i).value.trim() || "—",
+      divisi: document.getElementById("wa-div-" + i).value.trim() || "—",
+      pj: cand.pj || "—",
+      sasaran: cand.sasaran || "—",
+      peserta: cand.peserta == null ? null : cand.peserta,
+      keterangan: cand.keterangan || ""
+    });
+  });
+  return out;
+}
+
+async function commitWaImport() {
+  const selected = waCollectSelected();
+  if (!selected.length) { toast("Tidak ada kegiatan valid (butuh nama & tanggal)."); return; }
+  const kept = [];
+  for (const ev of selected) {
+    const i = kept.findIndex(k => waKeyMatches(k, ev));
+    if (i >= 0) {
+      const merged = mergeEvent(kept[i], ev);
+      if (waChangedFields(kept[i], merged)) kept[i] = merged;
+      continue;
+    }
+    kept.push(ev);
+  }
+  try {
+    const res = await API.bulk(kept.map(evToPayload));
+    closeWaImport();
+    await loadEvents({ silent: true });
+    const bits = [];
+    if (res.count) bits.push(res.count + " ditambahkan");
+    if (res.updated) bits.push(res.updated + " diperbarui (duplikat)");
+    if (res.skipped) bits.push(res.skipped + " dilewati (duplikat)");
+    toast(bits.length ? bits.join(" · ") : "Tidak ada perubahan");
+  } catch (e) {
+    toast(e.message);
+  }
 }
 
 function toast(msg) {
@@ -1346,6 +1836,12 @@ function init() {
 
   document.getElementById("addBtn").onclick = () => openForm(null);
   document.getElementById("importBtn2").onclick = () => document.getElementById("fileInput").click();
+  document.getElementById("waBtn").onclick = openWaImport;
+  document.getElementById("waClose").onclick = closeWaImport;
+  document.getElementById("waCancel").onclick = closeWaImport;
+  document.getElementById("waParse").onclick = runWaParse;
+  document.getElementById("waSubmit").onclick = commitWaImport;
+  document.getElementById("waOverlay").onclick = e => { if (e.target === e.currentTarget) closeWaImport(); };
   document.getElementById("exportAllBtn").onclick = exportAll;
   document.getElementById("refreshBtn").onclick = () => {
     loadEvents({ silent: true }).then(() => toast("Data disegarkan")).catch(() => {});
@@ -1435,7 +1931,9 @@ function init() {
     if (e.key === "Escape") {
       if (document.getElementById("lightbox").classList.contains("open")) closeLightbox();
       else if (document.getElementById("pinOverlay").classList.contains("open")) closePinModal();
-      else { closeModal(); closeForm(); }
+      else if (document.getElementById("waOverlay").classList.contains("open")) closeWaImport();
+      else if (document.getElementById("formOverlay").classList.contains("open")) closeForm();
+      else closeModal();
     }
   });
 

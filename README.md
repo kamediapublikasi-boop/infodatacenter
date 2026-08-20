@@ -15,6 +15,8 @@ Dashboard web multi-admin untuk data kegiatan gereja. Online, gratis (Vercel + S
 
 - Kalender bulanan + panel hari, tabel terfilter/sort, kelola (CRUD)
 - Tambah kegiatan cepat dari kalender: **double-click tanggal** (atau tombol ＋ di panel hari) → form popup dengan tanggal otomatis terisi
+- **Impor dari Teks (WhatsApp)**: tempel daftar jadwal chat → deteksi otomatis (tanggal, jam, lokasi, kategori) → tinjau & pilih → tambah sekaligus (batch, tanpa API eksternal)
+- **Anti-duplikat otomatis**: kegiatan dengan nama, tanggal, jam, dan tempat yang sama tidak akan dicatat dua kali — data yang lebih lengkap digabung ke kegiatan yang sudah ada (berlaku untuk form tambah/edit, impor WA, dan impor CSV)
 - Filter periode/kategori/status/divisi/pencarian; ekspor CSV
 - Gambar promo per kegiatan
 - Sinkron otomatis antar admin (polling 30 detik)

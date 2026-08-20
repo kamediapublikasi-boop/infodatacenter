@@ -6,6 +6,7 @@ const path = require("path");
 const express = require("express");
 const db = require("./db");
 const { checkPin, verifyPin } = require("./pin");
+const dedup = require("./dedup");
 
 const app = express();
 app.disable("x-powered-by");
@@ -67,6 +68,10 @@ const SELECT = `SELECT id, nama, kategori, jenis, tgl_mulai::text AS tgl_mulai, 
 
 const INSERT_COLS = `(nama,kategori,jenis,tgl_mulai,jam_mulai,tgl_selesai,jam_selesai,lokasi,divisi,pj,sasaran,peserta,status,keterangan)`;
 const INSERT_VALS = `($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`;
+const UPDATE_SQL = `UPDATE events SET nama=$2, kategori=$3, jenis=$4, tgl_mulai=$5, jam_mulai=$6,
+               tgl_selesai=$7, jam_selesai=$8, lokasi=$9, divisi=$10, pj=$11, sasaran=$12,
+               peserta=$13, status=$14, keterangan=$15, updated_at=now()
+       WHERE id=$1`;
 
 function insertParams(d) {
   return [d.nama, d.kategori, d.jenis, d.tgl_mulai, d.jam_mulai, d.tgl_selesai, d.jam_selesai,
@@ -134,6 +139,17 @@ app.post("/api/events", checkPin, async (req, res) => {
   if (!d.tgl_mulai) return res.status(400).json({ error: "Tanggal Mulai wajib diisi." });
   if (!d.nama) return res.status(400).json({ error: "Nama Event wajib diisi." });
   try {
+    const dup = await dedup.findDuplicate(db.pool, d);
+    if (dup) {
+      const merged = dedup.mergeFields(dup, d);
+      if (dedup.hasChange(dup, merged)) {
+        const { rows } = await db.q(`${UPDATE_SQL} RETURNING *`, [dup.id, ...insertParams(merged)]);
+        res.status(200).json(Object.assign({}, toJSON(rows[0]), { _deduped: true, _merged: true }));
+      } else {
+        res.status(200).json(Object.assign({}, toJSON(dup), { _deduped: true, _merged: false }));
+      }
+      return;
+    }
     const { rows } = await db.q(
       `INSERT INTO events ${INSERT_COLS} VALUES ${INSERT_VALS} RETURNING *`,
       insertParams(d)
@@ -150,11 +166,12 @@ app.put("/api/events/:id", checkPin, async (req, res) => {
   const d = toDB(req.body || {});
   if (!d.tgl_mulai) return res.status(400).json({ error: "Tanggal Mulai wajib diisi." });
   try {
+    const collide = await dedup.findDuplicateExcept(db.pool, d, id);
+    if (collide) {
+      return res.status(409).json({ error: "Kegiatan lain sudah memiliki nama, tanggal, jam, dan tempat yang sama." });
+    }
     const { rows } = await db.q(
-      `UPDATE events SET nama=$2, kategori=$3, jenis=$4, tgl_mulai=$5, jam_mulai=$6,
-              tgl_selesai=$7, jam_selesai=$8, lokasi=$9, divisi=$10, pj=$11, sasaran=$12,
-              peserta=$13, status=$14, keterangan=$15, updated_at=now()
-       WHERE id=$1 RETURNING *`,
+      `${UPDATE_SQL} RETURNING *`,
       [id, ...insertParams(d)]
     );
     if (!rows.length) return res.status(404).json({ error: "Kegiatan tidak ditemukan." });
@@ -184,12 +201,23 @@ app.post("/api/events/bulk", checkPin, async (req, res) => {
   }
   const client = await db.pool.connect().catch(() => null);
   if (!client) return res.status(500).json({ error: "DATABASE_URL belum diatur." });
-  let inserted = 0;
+  let inserted = 0, updated = 0, skipped = 0;
   try {
     await client.query("BEGIN");
     for (const item of list) {
       const d = toDB(item || {});
       if (!d.tgl_mulai) continue;
+      const dup = await dedup.findDuplicate(client, d);
+      if (dup) {
+        const merged = dedup.mergeFields(dup, d);
+        if (dedup.hasChange(dup, merged)) {
+          await client.query(UPDATE_SQL, [dup.id, ...insertParams(merged)]);
+          updated++;
+        } else {
+          skipped++;
+        }
+        continue;
+      }
       await client.query(
         `INSERT INTO events ${INSERT_COLS} VALUES ${INSERT_VALS}`,
         insertParams(d)
@@ -197,7 +225,7 @@ app.post("/api/events/bulk", checkPin, async (req, res) => {
       inserted++;
     }
     await client.query("COMMIT");
-    res.json({ ok: true, count: inserted });
+    res.json({ ok: true, count: inserted, updated, skipped });
   } catch (e) {
     await client.query("ROLLBACK");
     res.status(500).json({ error: "Gagal mengimpor: " + e.message });

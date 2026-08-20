@@ -344,6 +344,34 @@ td.aksi-cell { white-space: nowrap; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .required-star { color: var(--danger); }
 
+/* Impor teks WhatsApp */
+.wa-hint { color: var(--text-soft); font-size: 13px; line-height: 1.6; margin: 0 0 12px; }
+.wa-hint em { color: var(--text-faint); font-style: normal; }
+.wa-text { width: 100%; min-height: 140px; resize: vertical; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font: 13.5px/1.6 Consolas, Menlo, monospace; color: var(--text); background: var(--bg-soft); }
+.wa-text:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
+.wa-actions { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+.wa-count { font-size: 12.5px; color: var(--text-faint); }
+.wa-row {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin-top: 10px; background: var(--bg-soft);
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.wa-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.wa-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.wa-badge.dup { background: rgba(245,158,11,.16); color: #b45309; }
+.wa-badge.ndate { background: rgba(214,69,69,.12); color: var(--danger); }
+.wa-grid { flex: 1; display: flex; flex-wrap: wrap; gap: 8px; }
+.wa-field { flex: 1 1 120px; min-width: 90px; }
+.wa-field.wa-nama { flex: 2 1 200px; }
+.wa-field label { font-size: 10.5px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: .04em; display: block; margin-bottom: 2px; }
+.wa-field input, .wa-field select {
+  width: 100%; border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 7px; font-size: 12.5px; background: var(--bg-soft); color: var(--text);
+}
+.wa-field input:focus, .wa-field select:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
+.wa-inc { padding-top: 16px; }
+.wa-inc input { width: 18px; height: 18px; accent-color: var(--primary); }
+
 /* Promo gambar */
 .modal-img { position: relative; line-height: 0; background: var(--bg-hover); }
 .modal-img-empty { padding: 26px 16px; text-align: center; color: var(--text-faint); font-size: 13.5px; background: var(--bg-soft); border-bottom: 1px solid var(--border); line-height: 1.5; }
